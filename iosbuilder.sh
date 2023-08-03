@@ -2,34 +2,44 @@
 
 set -e
 
+# function to parse command line arguments
+parse_args() {
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            -dest) DEST_PATH="$2"; shift 2;;
+            -req_ops_config) REQUIRED_OPS_CONFIG="$2"; shift 2;;
+            -build_settings) BUILD_SETTINGS_JSON="$2"; shift 2;;
+            *)
+                echo "Unknown argument: $1"
+                exit 1
+                ;;
+        esac
+    done
+}
+
+parse_args "$@"
+
 ROOT_DIR=$(pwd)
-IOS_POD_STAGING_PATH="/Users/sleloglu/projects/fork_onnxruntime/build/ios_pod_staging"
-ONNXPOD_PATH="/Users/sleloglu/projects/fork_onnxruntime/build/ios_pod_staging/onnxruntime-training-c"
+IOS_POD_STAGING_PATH="$ROOT_DIR/build/ios_pod_staging"
 C_POD="onnxruntime-training-c"
 OBJC_POD="onnxruntime-training-objc"
 SCRIPT_PATH="tools/ci_build/github/apple/build_and_assemble_ios_pods.py"
-CONFIG_PATH="/Users/sleloglu/projects/onnx-mobile-demo/onnx-runtime-build-ios"
-ONNXAPP_PATH="/Users/sleloglu/projects/onnx-mobile-demo/OnnxTesterApp"
-ONNXPOD_PATH="onnx-fixed"
 
 python3 $SCRIPT_PATH \
   --variant Training \
-  --include-ops-by-config $CONFIG_PATH/required_operators.config \
-  --build-settings-file $CONFIG_PATH/build_settings_with_exceptions.json \
+  --include-ops-by-config $REQUIRED_OPS_CONFIG \
+  --build-settings-file $BUILD_SETTINGS_JSON \
   -b=--path_to_protoc_exe=/opt/homebrew/opt/protobuf@21/bin/protoc
 
 open $IOS_POD_STAGING_PATH
 
-rm -rf "$ONNXAPP_PATH/$ONNXPOD_PATH/$C_POD"
-rm -rf "$ONNXAPP_PATH/$ONNXPOD_PATH/$OBJC_POD"
+if [ -d "$DEST_PATH/$C_POD" ]; then
+  rm -rf "$DEST_PATH/$C_POD"
+fi
 
-cp -R $IOS_POD_STAGING_PATH/$C_POD "$ONNXAPP_PATH/$ONNXPOD_PATH"
-cp -R $IOS_POD_STAGING_PATH/$OBJC_POD "$ONNXAPP_PATH/$ONNXPOD_PATH"
+if [ -d "$DEST_PATH/$OBJC_POD" ]; then
+  rm -rf "$DEST_PATH/$OBJC_POD"
+fi
 
-cd "$ONNXAPP_PATH"
-
-pod install
-
-open "$ONNXAPP_PATH/OnnxTesterApp.xcworkspace"
-
-cd $ROOT_DIR
+cp -R $IOS_POD_STAGING_PATH/$C_POD "$DEST_PATH"
+cp -R $IOS_POD_STAGING_PATH/$OBJC_POD "$DEST_PATH"
